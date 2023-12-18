@@ -1,0 +1,9 @@
+version: "3"
+services:
+  mywebcrawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    command: java -cp app:app/lib/* com.example.mywebcrawler.MywebcrawlerApplication
