@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class WebCrawlerService {
@@ -24,9 +28,17 @@ public class WebCrawlerService {
   }
 
   public String crawl() throws IOException {
-    Map<String, Set<String>> siteMap = new HashMap<>();
+    Map<String, Set<String>> siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
+    ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
-    crawlUrl(BASE_URL, siteMap);
+    crawlUrl(BASE_URL, siteMap, executorService);
+
+    executorService.shutdown();
+    try {
+      executorService.awaitTermination(1, TimeUnit.MINUTES);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
 
     try {
       String jsonOutput = objectMapper.writeValueAsString(siteMap);
@@ -38,7 +50,7 @@ public class WebCrawlerService {
     }
   }
 
-  private void crawlUrl(String url, Map<String, Set<String>> siteMap) {
+  private void crawlUrl(String url, Map<String, Set<String>> siteMap, ExecutorService executorService) {
     if (siteMap.containsKey(url)) {
       return;
     }
@@ -52,7 +64,8 @@ public class WebCrawlerService {
     siteMap.put(url, links);
 
     for (String link : links) {
-      crawlUrl(link, siteMap);
+      //crawlUrl(link, siteMap, executorService);
+      executorService.submit(() -> crawlUrl(link, siteMap, executorService));
     }
   }
 
