@@ -21,5 +21,5 @@ Visit http://localhost:8080/crawler/crawl in your browser to initiate the crawli
 - implement a caching mechanism to not crawl same website on every request
 - better error handling on API
 - add logging, metrics, external config/secrets etc.
-- add CI checks
+- add CI checks (coverage, checkstyle etc)
 - replace jsoup with a performant library for dynamic scraping 

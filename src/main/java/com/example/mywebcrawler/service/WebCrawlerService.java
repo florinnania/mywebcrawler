@@ -18,6 +18,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+
+/**
+ * Service class for web crawling using Jsoup.
+ */
 @Service
 public class WebCrawlerService {
 
@@ -25,14 +29,23 @@ public class WebCrawlerService {
 
   private final ObjectMapper objectMapper;
 
+  /**
+   * Constructs a new WebCrawlerService.
+   *
+   * @param objectMapper ObjectMapper for JSON serialization.
+   */
   public WebCrawlerService(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
   }
 
+  /**
+   * Initiates the web crawling process.
+   *
+   * @return JSON representation of the site map.
+   */
   public String crawl() throws RuntimeException {
     Map<String, Set<String>> siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
     ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    //ExecutorService executorService= Executors.newSingleThreadExecutor();
 
     try {
       crawlUrl(BASE_URL, siteMap, executorService).get();
@@ -60,6 +73,13 @@ public class WebCrawlerService {
 
   }
 
+  /**
+   * Recursively crawls a URL and its child URLs, populating the siteMap.
+   *
+   * @param url            The URL to crawl.
+   * @param siteMap        The site map to populate.
+   * @param executorService The ExecutorService for parallel execution.
+   */
   private Future crawlUrl(String url, Map<String, Set<String>> siteMap, ExecutorService executorService) throws RuntimeException {
 
     Future future = null;
@@ -83,6 +103,12 @@ public class WebCrawlerService {
     return future;
   }
 
+  /**
+   * Extracts all hyperlinks from the provided HTML document.
+   *
+   * @param document The HTML document to extract links from
+   * @return A set of extracted URLs
+   */
   private Set<String> extractLinks(Document document) {
     Set<String> links = new HashSet<>();
     Elements elements = document.select("a[href]");

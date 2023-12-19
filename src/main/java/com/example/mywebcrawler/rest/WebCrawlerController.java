@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
+/**
+ * Controller class for web crawling endpoint.
+ */
 @RestController
 @RequestMapping("/crawler")
 public class WebCrawlerController {
