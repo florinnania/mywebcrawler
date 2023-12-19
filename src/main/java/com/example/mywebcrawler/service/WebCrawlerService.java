@@ -1,19 +1,23 @@
 package com.example.mywebcrawler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class WebCrawlerService {
@@ -21,23 +25,29 @@ public class WebCrawlerService {
   private static final String BASE_URL = "https://tomblomfield.com/";
 
   private final ObjectMapper objectMapper;
-  private final ThreadLocal<WebDriver> threadLocalDriver = ThreadLocal.withInitial(this::getWebDriver);
 
   public WebCrawlerService(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
   }
 
-  public String crawl() throws IOException {
+  public String crawl() throws RuntimeException {
     Map<String, Set<String>> siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
     ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    //ExecutorService executorService= Executors.newSingleThreadExecutor();
 
-    crawlUrl(BASE_URL, siteMap, executorService);
+    try {
+      crawlUrl(BASE_URL, siteMap, executorService).get();
+    } catch (ExecutionException | InterruptedException e) {
+      e.printStackTrace();
+      throw new RuntimeException(e.getMessage());
+    }
 
     executorService.shutdown();
     try {
       executorService.awaitTermination(1, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
       e.printStackTrace();
+      throw new RuntimeException(e.getMessage());
     }
 
     try {
@@ -46,43 +56,41 @@ public class WebCrawlerService {
       return jsonOutput;
     } catch (IOException e) {
       e.printStackTrace();
-      throw new IOException(e.getMessage());
+      throw new RuntimeException(e.getMessage());
     }
+
   }
 
-  private void crawlUrl(String url, Map<String, Set<String>> siteMap, ExecutorService executorService) {
+  private Future crawlUrl(String url, Map<String, Set<String>> siteMap, ExecutorService executorService) throws RuntimeException {
+
+    Future future = null;
     if (siteMap.containsKey(url)) {
-      return;
+      return null;
     }
 
     Set<String> links = new HashSet<>();
-    WebDriver driver = threadLocalDriver.get();
-
-    driver.get(url);
-    links.addAll(extractLinks(driver));
+    try {
+      Document document = Jsoup.connect(url).get();
+      links.addAll(extractLinks(document));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     siteMap.put(url, links);
 
     for (String link : links) {
-      //crawlUrl(link, siteMap, executorService);
-      executorService.submit(() -> crawlUrl(link, siteMap, executorService));
+      future = executorService.submit(() -> crawlUrl(link, siteMap, executorService));
     }
+    return future;
   }
 
-  private WebDriver getWebDriver() {
-    ChromeOptions options = new ChromeOptions();
-    // Add any additional options if needed
-    options.addArguments("--headless=new");
-    return new ChromeDriver(options);
-  }
-
-  private Set<String> extractLinks(WebDriver driver) {
+  private Set<String> extractLinks(Document document) {
     Set<String> links = new HashSet<>();
-    List<WebElement> elements = driver.findElements(By.tagName("a"));
+    Elements elements = document.select("a[href]");
 
-    for (WebElement element : elements) {
-      String absUrl = element.getAttribute("href");
-      if (absUrl != null && (isSameDomain(absUrl) || isRelativeLink(absUrl))) {
+    for (Element element : elements) {
+      String absUrl = element.absUrl("href");
+      if (isSameDomain(absUrl) || isRelativeLink(absUrl)) {
         links.add(absUrl);
       }
     }
@@ -98,3 +106,4 @@ public class WebCrawlerService {
     return url.startsWith("/");
   }
 }
+

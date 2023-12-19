@@ -1,6 +1,6 @@
 ### **Web Crawler project**
 
-Java [Spring Boot](https://spring.io/projects/spring-boot) application which use [Selenium WebDriver](https://www.selenium.dev/documentation/webdriver/) to crawls a given website and return a json site map with the following information:
+Java [Spring Boot](https://spring.io/projects/spring-boot) application which use [jsoup](https://jsoup.org/) to crawls a given website and return a json site map with the following information:
 - All the web pages accessible from the base url recursively
 - For each web page the links that it has to other web pages
 
@@ -22,3 +22,4 @@ Visit http://localhost:8080/crawler/crawl in your browser to initiate the crawli
 - better error handling on API
 - add logging, metrics, external config/secrets etc.
 - add CI checks
+- replace jsoup with a performant library for dynamic scraping 

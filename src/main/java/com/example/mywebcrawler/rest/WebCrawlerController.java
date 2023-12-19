@@ -25,7 +25,7 @@ public class WebCrawlerController {
     try {
       String jsonOutput = webCrawlerService.crawl();
       return ResponseEntity.ok(jsonOutput);
-    } catch (IOException e) {
+    } catch (RuntimeException e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
