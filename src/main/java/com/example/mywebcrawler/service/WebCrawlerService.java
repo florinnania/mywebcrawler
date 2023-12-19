@@ -17,12 +17,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class WebCrawlerService {
 
-  private static final String BASE_URL = "https://tomblomfield.com/";
+  private static String BASE_URL = "https://tomblomfield.com/";
 
   private final ObjectMapper objectMapper;
 
@@ -98,11 +97,11 @@ public class WebCrawlerService {
     return links;
   }
 
-  private boolean isSameDomain(String url) {
+  boolean isSameDomain(String url) {
     return url.startsWith(BASE_URL);
   }
 
-  private boolean isRelativeLink(String url) {
+  boolean isRelativeLink(String url) {
     return url.startsWith("/");
   }
 }
