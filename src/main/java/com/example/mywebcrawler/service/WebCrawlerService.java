@@ -12,10 +12,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.RecursiveTask;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * Service class for web crawling using Jsoup.
@@ -26,7 +24,7 @@ public class WebCrawlerService {
   private static String BASE_URL = "https://tomblomfield.com/";
 
   private final ObjectMapper objectMapper;
-  private final ExecutorService executorService;
+  private final ForkJoinPool forkJoinPool;
 
   private final Map<String, Set<String>> siteMap;
 
@@ -37,49 +35,48 @@ public class WebCrawlerService {
    */
   public WebCrawlerService(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
-    this.executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    this.forkJoinPool = new ForkJoinPool();
     this.siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
   }
 
   /**
    * Initiates the web crawling process.
-   *
    */
   public void crawl() throws RuntimeException {
-
-    crawlUrl(BASE_URL);
-    executorService.shutdown();
-    try {
-      executorService.awaitTermination(1, TimeUnit.MINUTES);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-      throw new RuntimeException(e.getMessage());
-    }
+    forkJoinPool.invoke(new CrawlTask(BASE_URL));
+    forkJoinPool.shutdown();
   }
 
   /**
-   * Recursively crawls a URL and its child URLs, populating the siteMap.
-   *
-   * @param url The URL to crawl.
+   * RecursiveTask to crawl a URL and its child URLs, populating the siteMap.
    */
-  private void crawlUrl(String url) throws RuntimeException {
+  private class CrawlTask extends RecursiveTask<Void> {
+    private final String url;
 
-    if (siteMap.containsKey(url)) {
-      return;
+    public CrawlTask(String url) {
+      this.url = url;
     }
 
-    Set<String> links;
-    try {
-      links = extractLinks(url);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    @Override
+    protected Void compute() {
+      if (!siteMap.containsKey(url)) {
+        Set<String> links;
+        try {
+          links = extractLinks(url);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
 
-    siteMap.put(url, links);
+        siteMap.put(url, links);
 
-    for (String link : links) {
-      //crawlUrl(link);
-      executorService.submit(() -> crawlUrl(link));
+        Set<CrawlTask> tasks = new HashSet<>();
+        for (String link : links) {
+          tasks.add(new CrawlTask(link));
+        }
+
+        invokeAll(tasks);
+      }
+      return null;
     }
   }
 
@@ -130,4 +127,3 @@ public class WebCrawlerService {
     }
   }
 }
-
