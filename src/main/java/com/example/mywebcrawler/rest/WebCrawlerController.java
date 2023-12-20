@@ -25,8 +25,8 @@ public class WebCrawlerController {
   @GetMapping(value = "/crawl", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> crawl() {
     try {
-      String jsonOutput = webCrawlerService.crawl();
-      return ResponseEntity.ok(jsonOutput);
+      webCrawlerService.crawl();
+      return ResponseEntity.ok(webCrawlerService.generateJsonOutput());
     } catch (RuntimeException e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }

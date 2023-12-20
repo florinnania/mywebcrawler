@@ -12,10 +12,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 
@@ -28,6 +26,9 @@ public class WebCrawlerService {
   private static String BASE_URL = "https://tomblomfield.com/";
 
   private final ObjectMapper objectMapper;
+  private final ExecutorService executorService;
+
+  private final Map<String, Set<String>> siteMap;
 
   /**
    * Constructs a new WebCrawlerService.
@@ -36,24 +37,17 @@ public class WebCrawlerService {
    */
   public WebCrawlerService(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
+    this.executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    this.siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
   }
 
   /**
    * Initiates the web crawling process.
    *
-   * @return JSON representation of the site map.
    */
-  public String crawl() throws RuntimeException {
-    Map<String, Set<String>> siteMap = new ConcurrentHashMap<>(); // ConcurrentHashMap for thread-safety
-    ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+  public void crawl() throws RuntimeException {
 
-    try {
-      crawlUrl(BASE_URL, siteMap, executorService).get();
-    } catch (ExecutionException | InterruptedException e) {
-      e.printStackTrace();
-      throw new RuntimeException(e.getMessage());
-    }
-
+    crawlUrl(BASE_URL);
     executorService.shutdown();
     try {
       executorService.awaitTermination(1, TimeUnit.MINUTES);
@@ -61,36 +55,22 @@ public class WebCrawlerService {
       e.printStackTrace();
       throw new RuntimeException(e.getMessage());
     }
-
-    try {
-      String jsonOutput = objectMapper.writeValueAsString(siteMap);
-      System.out.println(jsonOutput);
-      return jsonOutput;
-    } catch (IOException e) {
-      e.printStackTrace();
-      throw new RuntimeException(e.getMessage());
-    }
-
   }
 
   /**
    * Recursively crawls a URL and its child URLs, populating the siteMap.
    *
-   * @param url            The URL to crawl.
-   * @param siteMap        The site map to populate.
-   * @param executorService The ExecutorService for parallel execution.
+   * @param url The URL to crawl.
    */
-  private Future crawlUrl(String url, Map<String, Set<String>> siteMap, ExecutorService executorService) throws RuntimeException {
+  private void crawlUrl(String url) throws RuntimeException {
 
-    Future future = null;
     if (siteMap.containsKey(url)) {
-      return null;
+      return;
     }
 
-    Set<String> links = new HashSet<>();
+    Set<String> links;
     try {
-      Document document = Jsoup.connect(url).get();
-      links.addAll(extractLinks(document));
+      links = extractLinks(url);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -98,19 +78,22 @@ public class WebCrawlerService {
     siteMap.put(url, links);
 
     for (String link : links) {
-      future = executorService.submit(() -> crawlUrl(link, siteMap, executorService));
+      //crawlUrl(link);
+      executorService.submit(() -> crawlUrl(link));
     }
-    return future;
   }
 
   /**
-   * Extracts all hyperlinks from the provided HTML document.
+   * Extracts all hyperlinks from the provided page.
    *
-   * @param document The HTML document to extract links from
+   * @param url The URL to extract links from
    * @return A set of extracted URLs
    */
-  private Set<String> extractLinks(Document document) {
+  private Set<String> extractLinks(String url) throws IOException {
     Set<String> links = new HashSet<>();
+
+    Document document = Jsoup.connect(url).get();
+
     Elements elements = document.select("a[href]");
 
     for (Element element : elements) {
@@ -129,6 +112,22 @@ public class WebCrawlerService {
 
   boolean isRelativeLink(String url) {
     return url.startsWith("/");
+  }
+
+  /**
+   * Returns a JSON representation of the siteMap
+   *
+   * @return JSON representation of the site map.
+   */
+  public String generateJsonOutput() {
+    try {
+      String jsonOutput = objectMapper.writeValueAsString(siteMap);
+      System.out.println(jsonOutput);
+      return jsonOutput;
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw new RuntimeException(e.getMessage());
+    }
   }
 }
 

@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 public class WebCrawlerControllerTest {
@@ -29,7 +30,7 @@ public class WebCrawlerControllerTest {
   public void testCrawlSuccess() {
     // Mocking
     String expectedJsonOutput = "{\"https://tomblomfield.com/rss\": []}";
-    when(webCrawlerService.crawl()).thenReturn(expectedJsonOutput);
+    when(webCrawlerService.generateJsonOutput()).thenReturn(expectedJsonOutput);
 
     // Execution
     ResponseEntity<String> response = webCrawlerController.crawl();
@@ -42,7 +43,7 @@ public class WebCrawlerControllerTest {
   @Test
   public void testCrawlException() {
     // Mocking
-    when(webCrawlerService.crawl()).thenThrow(new RuntimeException("Test exception"));
+    doThrow(new RuntimeException("Test exception")).when(webCrawlerService).crawl();
 
     // Execution
     ResponseEntity<String> response = webCrawlerController.crawl();
